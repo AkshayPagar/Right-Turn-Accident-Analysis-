@@ -1,0 +1,166 @@
+{% extends "header.html" %}
+{% set currenttab = 'accidents-prediction' %}
+{% block scriptcontent %}
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'new.css') }}">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" />
+	<script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block bodycontent %}
+<div class="accidents-prediction">
+	<div class="container-fluid">  
+	
+		<div class="row">
+			<div class="col-md-4 collision-factors" >
+				<h3>Please choose the conditions to predict</h3><br>
+				
+				<form >
+				  <h5>Date and Time</h5>
+				  <input type="datetime-local" name="collision_datetime" id = "coldt" value ="{{ currentdttm }}"/>
+				  
+				<br><br>
+				
+				<h5>Lighting</h5>
+					<select name="lighting" style="margin-right:20px">
+							<option value='A'>DayLight</option>
+							<option value='B'>Dusk Dawn</option>
+							<option value='C'>Dark - Street Lights</option>
+							<option value='D'>Dark - No Street Lights</option>
+							<option value='E'>Dark - Street Lights Not Functioning</option>
+							<option selected value='_'>Not Stated</option>
+					</select>
+				<br><br>
+				
+				
+				<h5>Road Conditions</h5>
+					<select name="roadCondition" style="margin-right:20px">
+							<option value='A'>Holes, Deep Ruts</option>
+							<option value='B'>Loose Material on Roadway</option>
+							<option value='C'>Obstruction on Roadway</option>
+							<option value='D'>Construction or Repair Zone</option>
+							<option value='E'>Reduced Roadway Width</option>
+							<option value='F'>Flooded</option>
+							<option value='G'>Other</option>
+							<option value='H'>No Unusual Condition</option>
+							<option selected value='_'>Not Stated</option>
+					
+					</select>
+				<br><br>
+					
+				<h5>Road Surface</h5>
+					<select name="roadSurface" style="margin-right:20px">
+							<option value='A'>Dry</option>
+							<option value='B'>Wet</option>
+							<option value='C'>Snowy or Icy</option>
+							<option value='D'>Slippery</option>
+							<option selected value='_'>Not Stated</option>
+					
+					</select>
+				<br><br>
+				
+					
+				<h5>Weather</h5>
+					<select name="weather" style="margin-right:20px">
+							<option value='A'>Clear</option>
+							<option value='B'>Cloudy</option>
+							<option value='C'>Raining</option>
+							<option value='D'>Snowing</option>
+							<option value='E'>Fog</option>
+							<option value='G'>Wind</option>
+							<option value='F'>Other</option>	
+							<option selected value='_'>Not Stated</option>
+					</select>
+				<br><br>
+					
+				<input type="hidden" name ="pointx" id = "pointx"/>	
+				<input type="hidden" name ="pointy" id = "pointy"/>	
+				</form>
+				</div>
+				<div class ="col-md-8">
+	  				<div style="margin:auto"> <div id= "predictmap"></div></div>
+					  <script type="text/javascript">
+					      function onMarkerClick(e)
+						  {
+							var valueDate = document.getElementById("coldt").value;
+							if(valueDate == null || valueDate == '')
+								document.getElementById("coldt").value = "{{ currentdttm }}";
+							document.getElementById("pointx").value = e.latlng.lng;
+							document.getElementById("pointy").value = e.latlng.lat;
+							$.ajax({
+									url: '/predict',
+									data: $('form').serialize(),
+									type: 'POST',
+									success: function(response) {
+										var preds = JSON.parse(response);
+										str_ped = "Watch out for pedestrians!<br/>";
+										str_mc = "Watch out for motorcyclists!<br/>";
+										str_bc = "Watch out for bicyclists!";
+										str_tc = "Watch out for Trucks!";
+										str = "";
+										if(preds.pedestrians[0] == 'Y')
+											str = str.concat(str_ped);
+										if(preds.motorcyclists[0] == 'Y')
+											str = str.concat(str_mc);
+										if(preds.bicyclists[0] == 'Y')
+											str = str.concat(str_bc);
+										if(preds.trucks[0] == 'Y')
+											str = str.concat(str_tc);
+										if(str == "")
+											str = "No Risk"
+										e.target.bindPopup(str).openPopup();
+										console.log(response);
+									}
+									
+								});
+						  }
+						  var marker=null;
+						  function onMapDblClick(e)
+						  {
+							if(marker !=null)
+								marker.remove();
+							marker = L.marker([e.latlng.lat,e.latlng.lng]).addTo(map);
+							marker.on('click', onMarkerClick);
+						  }
+						  //var coordinates = JSON.parse({{ coordinates | tojson | safe}});
+						  var map = L.map('predictmap').setView([37.3, -121], 5);
+						  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+						  
+						  /*for(i=0;i<coordinates.length;i++)
+						  {
+							  var marker = L.marker([coordinates[i].y,coordinates[i].x]).addTo(map);
+							  marker.on('click', onMarkerClick);
+						  }*/
+						  map.on('dblclick',onMapDblClick)
+					  </script>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+	
+	<div id="login" class="modal" tabindex="-1" role="dialog">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Right Turn Analysis</h5>
+				</div>
+				<div class="modal-body">
+					<div class="text-center">
+						<button type="button" class="btn btn-primary" onclick = "window.location='/login'">You need to login to view this page</button>
+					</div>
+				</div>
+				
+			</div>
+		</div>
+	</div>
+    {% if logged_in == false %}
+	<script type="text/javascript">
+		$( document ).ready(function() {
+		    $('#login').modal({
+					backdrop : 'static'
+				});
+			
+		});
+	</script>
+	{% endif %}
+{% endblock %}
